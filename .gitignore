@@ -1,0 +1,3 @@
+.venv/
+finetune/runs/
+__pycache__/
