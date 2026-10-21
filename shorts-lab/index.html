@@ -1,0 +1,915 @@
+<title>Gagworks Shorts Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:ital,wght@0,400;0,500;0,600;0,700;1,500&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: a phone-sized 9:16 "screen" is the hero; the controls stack under it on phones and sit beside it on wide screens. Deliberately one dark "edit bay" theme. */
+:root {
+  --bay: #15111d;
+  --panel: #1e1929;
+  --line: #322a45;
+  --fg: #f4effc;
+  --mut: #a89fbd;
+  --butter: #ffd23f;
+  --butter-ink: #231a00;
+  --coral: #ff5a5f;
+  --mint: #3ddc84;
+  --display: "Bricolage Grotesque", "Arial Black", system-ui, sans-serif;
+  --body: Figtree, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+html { background: var(--bay); }
+body { background: var(--bay); color: var(--fg); font: 16px/1.5 var(--body); }
+.wrap {
+  max-width: 1120px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 18px 48px;
+}
+header.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.brand { font: 800 30px/1 var(--display); letter-spacing: -0.02em; }
+.brand b { color: var(--butter); font-weight: 800; }
+.brand small { display: block; font: 500 12px/1.4 var(--mono); color: var(--mut); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 6px; }
+.rec-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--coral); margin-right: 6px; vertical-align: 1px; }
+.layout { display: grid; gap: 20px; }
+@media (min-width: 900px) {
+  .layout { grid-template-columns: minmax(330px, 400px) minmax(0, 1fr); align-items: start; }
+  .stage { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); }
+}
+.stage { display: grid; gap: 12px; min-width: 0; }
+.screen {
+  aspect-ratio: 9 / 16; width: min(100%, calc(66vh * 9 / 16)); max-width: 100%;
+  margin-inline: auto; border-radius: 26px; overflow: hidden; background: #000;
+  box-shadow: 0 0 0 8px #0b0910, 0 0 0 9px var(--line), 0 24px 60px rgba(0,0,0,.5);
+}
+.screen canvas { width: 100%; height: 100%; display: block; }
+.transport { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.scrubrow { display: flex; align-items: center; gap: 10px; }
+.scrubrow input { flex: 1; min-width: 0; accent-color: var(--butter); }
+.tc { font: 500 13px var(--mono); color: var(--mut); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.toggles { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; font-size: 14px; color: var(--mut); }
+.toggles label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.toggles input { accent-color: var(--butter); width: 18px; height: 18px; }
+#status { min-height: 1.5em; text-align: center; font-size: 14px; color: var(--mut); margin: 0; }
+#status.err { color: var(--coral); }
+.result { display: grid; gap: 10px; justify-items: center; }
+.result video { width: 160px; aspect-ratio: 9/16; border-radius: 14px; background: #000; max-width: 100%; }
+
+button {
+  font: 600 15px/1 var(--body); color: var(--fg); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 999px; padding: 12px 18px; cursor: pointer;
+  min-height: 44px; transition: transform .08s ease, background .15s ease;
+}
+button:hover { background: #2a2338; }
+button:active { transform: scale(.97); }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--butter); outline-offset: 2px; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button.primary { background: var(--butter); color: var(--butter-ink); border-color: var(--butter); }
+button.primary:hover { background: #ffdc66; }
+button.rec { background: var(--coral); border-color: var(--coral); color: #fff; }
+button.rec:hover { background: #ff7276; }
+button.small { padding: 8px 12px; min-height: 36px; font-size: 13px; }
+
+.panels { display: grid; gap: 16px; min-width: 0; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px; min-width: 0; display: grid; gap: 14px; }
+.panel h2 { margin: 0; font: 800 22px/1.1 var(--display); letter-spacing: -0.01em; text-wrap: balance; }
+.panel h2 span { font: 500 11px var(--mono); color: var(--mut); letter-spacing: .1em; text-transform: uppercase; display: block; margin-bottom: 6px; }
+.hint { margin: 0; color: var(--mut); font-size: 14px; max-width: 62ch; }
+label.f { display: grid; gap: 6px; font: 600 13px var(--body); color: var(--mut); }
+input[type=text], textarea {
+  width: 100%; box-sizing: border-box; font: 16px/1.45 var(--body); color: var(--fg);
+  background: var(--bay); border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px;
+}
+textarea { resize: vertical; }
+textarea.code { font: 14px/1.6 var(--mono); min-height: 240px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; border: 0; margin: 0; padding: 0; }
+.seg legend { font: 600 13px var(--body); color: var(--mut); margin-bottom: 6px; padding: 0; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label { padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line); cursor: pointer; font-size: 14px; font-weight: 600; background: var(--bay); }
+.seg input:checked + label { background: var(--fg); color: var(--bay); border-color: var(--fg); }
+.seg input:focus-visible + label { outline: 2px solid var(--butter); outline-offset: 2px; }
+
+.meter { display: flex; align-items: baseline; gap: 10px; }
+.meter b { font: 800 54px/1 var(--display); font-variant-numeric: tabular-nums; }
+.meter i { font-style: normal; color: var(--mut); font: 500 14px var(--mono); }
+.bar { height: 10px; border-radius: 99px; background: var(--bay); overflow: hidden; }
+.bar > div { height: 100%; background: var(--butter); border-radius: 99px; transition: width .3s ease; }
+.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.checks li { display: grid; grid-template-columns: 26px minmax(0,1fr) auto; gap: 8px; align-items: baseline; font-size: 15px; }
+.checks .mk { font: 700 14px var(--mono); text-align: center; border-radius: 6px; padding: 1px 0; }
+.checks .ok .mk { color: var(--bay); background: var(--mint); }
+.checks .no .mk { color: var(--fg); background: var(--line); }
+.checks small { color: var(--mut); font: 500 12px var(--mono); text-align: right; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px; }
+.legend code { font: 500 12px var(--mono); background: var(--bay); border: 1px solid var(--line); border-radius: 6px; padding: 3px 7px; color: var(--butter); }
+
+.timeline { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
+.timeline div { padding: 12px; background: var(--bay); border-right: 1px solid var(--line); min-width: 0; }
+.timeline div:last-child { border-right: 0; }
+.timeline b { display: block; font: 500 12px var(--mono); color: var(--butter); margin-bottom: 4px; }
+.timeline span { font-size: 14px; }
+@media (max-width: 560px) { .timeline { grid-template-columns: 1fr 1fr; } .timeline div:nth-child(2) { border-right: 0; } .timeline div:nth-child(-n+2) { border-bottom: 1px solid var(--line); } }
+.rules { margin: 0; padding-left: 20px; display: grid; gap: 8px; max-width: 66ch; }
+.rules li::marker { color: var(--butter); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">Gag<b>works</b><small><span class="rec-dot"></span>Shorts lab · 1080×1920 · 9:16</small></div>
+  </header>
+
+  <div class="layout">
+    <section class="stage" aria-label="Preview">
+      <div class="screen"><canvas id="cv" width="720" height="1280" aria-label="Short preview"></canvas></div>
+      <div class="scrubrow">
+        <input id="scrub" type="range" min="0" max="1000" value="600" aria-label="Scrub timeline">
+        <span class="tc" id="tc">0:00 / 0:00</span>
+      </div>
+      <div class="transport">
+        <button id="play" class="primary">Play with sound</button>
+        <button id="rec" class="rec">Record video</button>
+      </div>
+      <div class="toggles">
+        <label><input type="checkbox" id="music" checked> Beat under it</label>
+        <label><input type="checkbox" id="sfx" checked> Sound effects</label>
+      </div>
+      <p id="status" role="status">Tap Play to preview. iPhone: turn the silent switch off to hear it.</p>
+      <div class="result" id="result" hidden>
+        <video id="out" controls playsinline></video>
+        <button id="save" class="primary">Save video to phone</button>
+      </div>
+    </section>
+
+    <div class="panels">
+      <section class="panel" aria-labelledby="h-write">
+        <h2 id="h-write"><span>Step 1</span>Write a bit</h2>
+        <label class="f" for="topic">What's it about?
+          <input type="text" id="topic" placeholder="my cat thinks it pays rent" autocomplete="off">
+        </label>
+        <fieldset class="seg" id="fmt">
+          <legend>Format</legend>
+          <input type="radio" name="fmt" id="f-chat" value="chat" checked><label for="f-chat">Text thread</label>
+          <input type="radio" name="fmt" id="f-pov" value="pov"><label for="f-pov">POV captions</label>
+          <input type="radio" name="fmt" id="f-ranking" value="ranking"><label for="f-ranking">Ranking /10</label>
+        </fieldset>
+        <fieldset class="seg" id="tone">
+          <legend>Tone</legend>
+          <input type="radio" name="tone" id="t-dead" value="deadpan" checked><label for="t-dead">Deadpan</label>
+          <input type="radio" name="tone" id="t-chaos" value="unhinged and chaotic"><label for="t-chaos">Chaotic</label>
+          <input type="radio" name="tone" id="t-whole" value="wholesome but absurd"><label for="t-whole">Wholesome</label>
+          <input type="radio" name="tone" id="t-dark" value="dry and sarcastic"><label for="t-dark">Sarcastic</label>
+        </fieldset>
+        <div class="row">
+          <button id="ai" class="primary">Write it with Claude</button>
+          <button id="remix">Quick remix (offline)</button>
+          <button id="idea" class="small">Random idea</button>
+        </div>
+        <p class="hint" id="aiNote">Claude writes the script following the viral blueprint below. Quick remix fills a proven template with your topic and works offline.</p>
+      </section>
+
+      <section class="panel" aria-labelledby="h-score">
+        <h2 id="h-score"><span>Step 2</span>Viral check</h2>
+        <div class="meter"><b id="pts">0</b><i>/ 100 structure score</i></div>
+        <div class="bar"><div id="barfill" style="width:0%"></div></div>
+        <ul class="checks" id="checks"></ul>
+        <p class="hint">This scores structure: hook, pacing, sound cues, loop and title. Only you can tell whether it's funny.</p>
+      </section>
+
+      <section class="panel" aria-labelledby="h-edit">
+        <h2 id="h-edit"><span>Step 3</span>Punch up the script</h2>
+        <label class="f" for="hook">Hook (stays on screen the whole time)
+          <input type="text" id="hook" autocomplete="off">
+        </label>
+        <label class="f" for="script">One beat per line: <code style="font-family:var(--mono)">Speaker: line [sound]</code>
+          <textarea id="script" class="code" spellcheck="false"></textarea>
+        </label>
+        <div class="legend" aria-label="Sound tags"><code>[boom]</code><code>[scratch]</code><code>[ding]</code><code>[fail]</code><code>[airhorn]</code><code>7/10</code></div>
+        <p class="hint">Text thread: name the phone owner <b>Me</b> and they show on the right. Ranking: end a line with a score like <b>7/10</b>. Edits update the preview live.</p>
+      </section>
+
+      <section class="panel" aria-labelledby="h-pack">
+        <h2 id="h-pack"><span>Step 4</span>Upload pack</h2>
+        <label class="f" for="handle">Your channel handle (shown on the video)
+          <input type="text" id="handle" value="@yourchannel" autocomplete="off">
+        </label>
+        <label class="f" for="ttl">Title
+          <input type="text" id="ttl" autocomplete="off">
+        </label>
+        <div class="row"><button class="small" data-copy="ttl">Copy title</button></div>
+        <label class="f" for="desc">Description
+          <textarea id="desc" rows="4"></textarea>
+        </label>
+        <div class="row"><button class="small" data-copy="desc">Copy description</button></div>
+        <label class="f" for="pinned">Pinned comment (a question gets people replying)
+          <input type="text" id="pinned" autocomplete="off">
+        </label>
+        <div class="row"><button class="small" data-copy="pinned">Copy comment</button></div>
+        <p class="hint">On your phone: save the video, open the YouTube app, tap <b>+</b> then <b>Short</b>, pick the video, paste the title and description, post, then pin the comment.</p>
+      </section>
+
+      <section class="panel" aria-labelledby="h-blue">
+        <h2 id="h-blue"><span>Reverse engineered</span>The viral comedy blueprint</h2>
+        <p class="hint">Funny Shorts that take off tend to share one skeleton. Every script made here is built on it.</p>
+        <div class="timeline">
+          <div><b>0:00</b><span>Hook states the premise on screen. No intro, no logo.</span></div>
+          <div><b>0:01 →</b><span>One premise, escalating. Something changes every 2–3 s.</span></div>
+          <div><b>~70%</b><span>The twist, landed on a sound effect.</span></div>
+          <div><b>End</b><span>Last line feeds back into the first, so it loops.</span></div>
+        </div>
+        <ol class="rules">
+          <li>Stay between 12 and 35 seconds. Short videos get rewatched, and rewatches help.</li>
+          <li>Make it work on mute: big captions in the middle of the frame.</li>
+          <li>Give the title the premise in under 60 characters, plus #shorts.</li>
+          <li>Post consistently. One video is a lottery ticket. Twenty in a format tell you what works.</li>
+          <li>Keep it original. Don't use real people's names or faces, or copyrighted clips and music. Everything here is drawn and synthesized on your phone.</li>
+        </ol>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const cv = $('cv'), g = cv.getContext('2d');
+const W = 720, H = 1280;
+const SFX = ['boom', 'scratch', 'ding', 'fail', 'airhorn'];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const easeOut = x => 1 - Math.pow(1 - x, 3);
+const easeOutBack = x => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+const clone = o => JSON.parse(JSON.stringify(o));
+const F = {
+  hook: '800 52px "Bricolage Grotesque", "Arial Black", sans-serif',
+  cap: '800 80px "Bricolage Grotesque", "Arial Black", sans-serif',
+  item: '800 74px "Bricolage Grotesque", "Arial Black", sans-serif',
+  score: '800 82px "Bricolage Grotesque", "Arial Black", sans-serif',
+  label: '500 30px "JetBrains Mono", monospace',
+  handle: '500 24px "JetBrains Mono", monospace',
+  bubble: '500 36px Figtree, system-ui, sans-serif',
+};
+
+const SAMPLES = {
+  chat: { format: 'chat', hook: 'My dog texting me while I’m at work',
+    title: 'My dog has questions about my job #shorts',
+    description: 'He means well. The couch disagrees.', hashtags: ['#dog', '#texting', '#funny'],
+    pinned: 'What would YOUR pet text you right now?',
+    beats: [
+      { speaker: 'Biscuit', text: 'where r u' },
+      { speaker: 'Me', text: 'at work buddy' },
+      { speaker: 'Biscuit', text: 'what is work' },
+      { speaker: 'Me', text: 'it’s how I buy your food' },
+      { speaker: 'Biscuit', text: 'so ur HUNTING' },
+      { speaker: 'Biscuit', text: 'proud of u' },
+      { speaker: 'Biscuit', text: 'also the couch is dead', sfx: 'boom' },
+      { speaker: 'Me', text: 'WHAT' },
+      { speaker: 'Biscuit', text: 'it attacked first', sfx: 'scratch' },
+      { speaker: 'Biscuit', text: 'where r u' } ] },
+  pov: { format: 'pov', hook: 'POV: you said “one more episode”',
+    title: '“One more episode” is a lie we all tell #shorts',
+    description: 'The streaming service is worried about you.', hashtags: ['#relatable', '#pov', '#bingewatching'],
+    pinned: 'What time did your “one more” end last night?',
+    beats: [
+      { speaker: '11:02 PM', text: 'okay just ONE more' },
+      { speaker: '12:30 AM', text: 'the skip intro button knows me personally' },
+      { speaker: '1:47 AM', text: 'snack number four. zero regrets' },
+      { speaker: '3:15 AM', text: '“Are you still watching?”', sfx: 'scratch' },
+      { speaker: '3:15 AM', text: 'how DARE you judge me' },
+      { speaker: '6:58 AM', text: 'alarm goes off', sfx: 'airhorn' },
+      { speaker: '6:59 AM', text: 'completely dead inside' },
+      { speaker: '7:00 AM', text: 'okay just ONE more', sfx: 'boom' } ] },
+  ranking: { format: 'ranking', hook: 'Ranking things my cat knocked off the table',
+    title: 'My cat is a menace and I have receipts #shorts',
+    description: 'She would like to speak to the manager. She is the manager.', hashtags: ['#cat', '#catsoftiktok', '#ranking'],
+    pinned: 'What has YOUR cat destroyed this week?',
+    beats: [
+      { speaker: 'A pen', text: 'warm-up throw. no eye contact', score: 2 },
+      { speaker: 'My glass of water', text: 'predictable but effective', score: 5 },
+      { speaker: 'The TV remote', text: 'hid it under the fridge. strategic', score: 7 },
+      { speaker: 'My phone, mid-call with my boss', text: 'she waited for the important part', score: 10, sfx: 'boom' },
+      { speaker: 'A whole birthday cake', text: 'held eye contact the entire time', score: 11, sfx: 'airhorn' },
+      { speaker: 'Her own food bowl', text: 'then screamed because it was empty', score: 1, sfx: 'fail' } ] },
+};
+const IDEAS = ['my cat thinks it pays rent', 'my phone at 1% battery', 'learning guitar at 30', 'the group project', 'my landlord discovering texting',
+  'the gym in January', 'my mom discovering emojis', 'autocorrect ruining my life', 'my plants judging me', 'the Wi-Fi router has feelings',
+  'my alarm clock vs me', 'grocery shopping while hungry', 'my GPS getting fed up', 'the last slice of pizza'];
+
+// ---------- script <-> text ----------
+function toText(s) {
+  return s.beats.map(b => {
+    let line = b.speaker ? `${b.speaker}: ${b.text}` : b.text;
+    if (s.format === 'ranking' && b.score != null) line += ` ${b.score}/10`;
+    if (b.sfx) line += ` [${b.sfx}]`;
+    return line;
+  }).join('\n');
+}
+function parseText(txt, format) {
+  return txt.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+    let sfx = null, score = null;
+    l = l.replace(/\[(\w+)\]/g, (m, w) => { w = w.toLowerCase(); if (SFX.includes(w)) sfx = w; return ''; }).trim();
+    if (format === 'ranking') l = l.replace(/(\d{1,2})\s*\/\s*10\s*$/, (m, n) => { score = +n; return ''; }).trim();
+    let speaker = '', text = l;
+    const i = l.indexOf(': ');
+    if (i > 0 && i < 48) { speaker = l.slice(0, i).trim(); text = l.slice(i + 2).trim(); }
+    return { speaker, text, sfx, score };
+  }).filter(b => b.text || b.speaker);
+}
+
+// ---------- timeline ----------
+function build(s) {
+  const speakers = [...new Set(s.beats.map(b => b.speaker).filter(Boolean))];
+  const me = speakers.find(n => /^(me|you|i)$/i.test(n)) || speakers[1] || '\u0000';
+  const lefts = speakers.filter(n => n !== me);
+  let t = 0.7;
+  const beats = s.beats.map(b => {
+    const words = (b.text || '').split(/\s+/).filter(Boolean).length + (s.format === 'ranking' ? (b.speaker || '').split(/\s+/).filter(Boolean).length : 0);
+    const left = s.format === 'chat' && b.speaker !== me;
+    const typing = left ? 0.6 : 0;
+    let read = clamp(0.8 + words * 0.27, 1.2, 3.6);
+    if (s.format === 'ranking') read = clamp(read + 0.9, 2.3, 4.4);
+    const start = t, show = t + typing, end = show + read;
+    t = end;
+    return { ...b, start, show, end, read, left, typing, stamp: show + read * 0.45 };
+  });
+  return { s, beats, me, lefts, contact: lefts[0] || 'Unknown Number', dur: t + 0.4 };
+}
+
+// ---------- drawing ----------
+function rr(x, y, w, h, r) {
+  r = Math.min(r, h / 2, w / 2);
+  g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+function circle(x, y, r) { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
+function wrapLines(text, maxW) {
+  const words = String(text).split(/\s+/).filter(Boolean), lines = [];
+  let cur = '';
+  for (const w of words) {
+    const test = cur ? cur + ' ' + w : w;
+    if (g.measureText(test).width > maxW && cur) { lines.push(cur); cur = w; } else cur = test;
+  }
+  if (cur) lines.push(cur);
+  return lines.length ? lines : [''];
+}
+function hookLayout() {
+  g.font = F.hook;
+  const lines = TL.s.hook ? wrapLines(TL.s.hook, 590) : [];
+  const lh = 60;
+  return { lines, lh, h: lines.length ? lines.length * lh + 34 : 0, top: 52 };
+}
+function hookBottom() { const L = hookLayout(); return L.top + L.h + 48; }
+function curIndex(t) { let i = 0; TL.beats.forEach((b, j) => { if (t >= b.start) i = j; }); return i; }
+function outlined(text, x, y, fill, lw) {
+  g.lineJoin = 'round'; g.lineWidth = lw; g.strokeStyle = '#000'; g.strokeText(text, x, y); g.fillStyle = fill; g.fillText(text, x, y);
+}
+
+function drawHook(t) {
+  const L = hookLayout();
+  if (L.lines.length) {
+    const sc = 1 + 0.35 * (1 - easeOut(clamp(t / 0.25, 0, 1)));
+    g.save(); g.translate(W / 2, L.top + L.h / 2); g.rotate(-0.025); g.scale(sc, sc);
+    g.font = F.hook;
+    const bw = Math.max(...L.lines.map(l => g.measureText(l).width)) + 56;
+    g.fillStyle = '#000'; rr(-bw / 2 + 6, -L.h / 2 + 8, bw, L.h, 18); g.fill();
+    g.fillStyle = '#ffd23f'; rr(-bw / 2, -L.h / 2, bw, L.h, 18); g.fill();
+    g.fillStyle = '#1d1400'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    L.lines.forEach((l, i) => g.fillText(l, 0, -L.h / 2 + 17 + L.lh * i + L.lh / 2));
+    g.restore();
+  }
+  const handle = $('handle').value.trim();
+  if (handle) {
+    g.font = F.handle; g.textAlign = 'right'; g.textBaseline = 'alphabetic';
+    g.fillStyle = 'rgba(255,255,255,.72)'; g.fillText(handle, W - 40, L.top + L.h + 34);
+  }
+  g.textBaseline = 'alphabetic';
+}
+
+function drawChat(t) {
+  g.fillStyle = '#0e0d13'; g.fillRect(0, 0, W, H);
+  const top = hookBottom() + 6;
+  g.fillStyle = '#1a1822'; g.fillRect(0, top, W, 104);
+  g.fillStyle = '#5b4b8a'; circle(76, top + 52, 34);
+  g.fillStyle = '#fff'; g.font = '700 32px Figtree, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText((TL.lefts.length > 1 ? 'G' : TL.contact[0] || '?').toUpperCase(), 76, top + 53);
+  g.textBaseline = 'alphabetic'; g.textAlign = 'left';
+  g.fillStyle = '#f4f4f6'; g.font = '700 32px Figtree, sans-serif';
+  g.fillText(TL.lefts.length > 1 ? 'Group chat' : TL.contact, 128, top + 46);
+  const typingNow = TL.beats.some(b => b.left && t >= b.start && t < b.show);
+  g.font = '500 22px Figtree, sans-serif'; g.fillStyle = typingNow ? '#ffd23f' : '#8e8a99';
+  g.fillText(typingNow ? 'typing…' : 'online', 128, top + 78);
+
+  const aTop = top + 122, aBot = H - 126, group = TL.lefts.length > 1;
+  g.font = F.bubble;
+  const items = []; let prev = null;
+  for (const b of TL.beats) {
+    if (t >= b.show) {
+      const lines = wrapLines(b.text, 440);
+      const w = Math.max(...lines.map(l => g.measureText(l).width)) + 44;
+      const label = group && b.left && b.speaker !== prev;
+      items.push({ b, kind: 'msg', lines, w, label, bh: lines.length * 46 + 30, h: lines.length * 46 + 30 + (label ? 30 : 0), k: clamp((t - b.show) / 0.2, 0, 1) });
+      prev = b.speaker;
+    } else if (b.left && t >= b.start) {
+      items.push({ b, kind: 'typing', w: 118, h: 72, k: clamp((t - b.start) / 0.15, 0, 1), age: t - b.start });
+    }
+  }
+  const gap = 14;
+  const total = items.reduce((a, it) => a + (it.h + gap) * easeOut(it.k), 0);
+  const off = Math.max(0, total - (aBot - aTop));
+  g.save(); g.beginPath(); g.rect(0, aTop, W, aBot - aTop); g.clip();
+  let y = aTop - off;
+  for (const it of items) {
+    const left = it.b.left, x = left ? 32 : W - 32 - it.w;
+    const sc = 0.6 + 0.4 * easeOutBack(it.k);
+    g.save();
+    const ax = left ? x : x + it.w, ay = y + it.h;
+    g.translate(ax, ay); g.scale(sc, sc); g.translate(-ax, -ay);
+    g.globalAlpha = clamp(it.k * 2, 0, 1);
+    if (it.kind === 'typing') {
+      g.fillStyle = '#2a2833'; rr(x, y, it.w, it.h, 34); g.fill();
+      for (let i = 0; i < 3; i++) {
+        const a = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(it.age * 9 - i * 0.9));
+        g.fillStyle = `rgba(220,218,230,${a})`; circle(x + 32 + i * 27, y + 36, 9);
+      }
+    } else {
+      let by = y;
+      if (it.label) {
+        g.font = '600 22px Figtree, sans-serif'; g.fillStyle = '#9f9aad'; g.textAlign = 'left';
+        g.fillText(it.b.speaker, x + 14, y + 20); by += 30;
+      }
+      g.font = F.bubble;
+      g.fillStyle = left ? '#2a2833' : '#2f7cf6'; rr(x, by, it.w, it.bh, 30); g.fill();
+      g.fillStyle = '#fff'; g.textAlign = 'left';
+      it.lines.forEach((l, i) => g.fillText(l, x + 22, by + 49 + i * 46));
+    }
+    g.restore();
+    y += (it.h + gap) * easeOut(it.k);
+  }
+  g.restore();
+  g.fillStyle = '#1a1822'; g.fillRect(0, H - 114, W, 114);
+  g.strokeStyle = '#3a3745'; g.lineWidth = 2; rr(32, H - 94, W - 64, 60, 30); g.stroke();
+  g.fillStyle = '#6f6b7c'; g.font = '500 26px Figtree, sans-serif'; g.textAlign = 'left';
+  g.fillText('Text message', 62, H - 55);
+}
+
+function drawPov(t) {
+  const i = curIndex(t), b = TL.beats[i], hue = (i * 53 + 250) % 360;
+  const gr = g.createLinearGradient(0, 0, 0, H);
+  gr.addColorStop(0, `hsl(${hue}, 55%, 24%)`); gr.addColorStop(1, `hsl(${(hue + 40) % 360}, 60%, 8%)`);
+  g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  if (!b || t < b.start) return;
+  const words = b.text.split(/\s+/).filter(Boolean);
+  g.font = F.cap;
+  const space = g.measureText(' ').width, lines = [];
+  let ln = [], lw = 0;
+  for (const w of words) {
+    const ww = g.measureText(w).width;
+    if (ln.length && lw + space + ww > 620) { lines.push(ln); ln = []; lw = 0; }
+    lw += (ln.length ? space : 0) + ww; ln.push({ t: w, width: ww });
+  }
+  if (ln.length) lines.push(ln);
+  const reveal = b.read * 0.55;
+  const shown = clamp(Math.floor((t - b.show) / reveal * words.length) + 1, 0, words.length);
+  const sc = 1 + 0.1 * (1 - easeOut(clamp((t - b.start) / 0.2, 0, 1)));
+  const lh = 92, blockH = lines.length * lh;
+  g.save(); g.translate(W / 2, H * 0.55); g.scale(sc, sc);
+  if (b.speaker) {
+    g.font = F.label; g.textAlign = 'center';
+    const tw = g.measureText(b.speaker.toUpperCase()).width + 36;
+    g.fillStyle = 'rgba(0,0,0,.55)'; rr(-tw / 2, -blockH / 2 - 96, tw, 52, 12); g.fill();
+    g.fillStyle = '#ffd23f'; g.fillText(b.speaker.toUpperCase(), 0, -blockH / 2 - 60);
+  }
+  g.font = F.cap; g.textAlign = 'left';
+  let n = 0;
+  lines.forEach((line, li) => {
+    const w = line.reduce((a, x) => a + x.width, 0) + space * (line.length - 1);
+    let x = -w / 2; const y = -blockH / 2 + li * lh + lh * 0.74;
+    line.forEach(word => {
+      if (n < shown) outlined(word.t, x, y, n === shown - 1 ? '#ffd23f' : '#fff', 14);
+      x += word.width + space; n++;
+    });
+  });
+  g.restore();
+}
+
+function drawRank(t) {
+  g.fillStyle = '#17121f'; g.fillRect(0, 0, W, H);
+  g.save(); g.globalAlpha = 0.07; g.fillStyle = '#ffd23f'; g.translate(W / 2, H / 2); g.rotate(-0.5);
+  for (let x = -1500; x < 1500; x += 120) g.fillRect(x + (t * 40) % 120, -1500, 46, 3000);
+  g.restore();
+  const i = curIndex(t), b = TL.beats[i];
+  if (!b || t < b.start) return;
+  const slide = (1 - easeOut(clamp((t - b.start) / 0.28, 0, 1))) * W * 0.7;
+  g.save(); g.translate(slide, 0); g.textAlign = 'center';
+  g.font = F.label; g.fillStyle = '#ffd23f';
+  g.fillText(`NO. ${i + 1} OF ${TL.beats.length}`, W / 2, hookBottom() + 80);
+  g.font = F.item;
+  const name = b.speaker || b.text;
+  const lines = wrapLines(name, 620);
+  let y = 470;
+  lines.forEach(l => { outlined(l, W / 2, y, '#fff', 12); y += 86; });
+  if (b.speaker && b.text) {
+    g.font = 'italic 500 40px Figtree, sans-serif'; g.fillStyle = '#d8d1e8';
+    wrapLines('“' + b.text + '”', 600).forEach(l => { y += 6; g.fillText(l, W / 2, y + 20); y += 50; });
+  }
+  g.restore();
+  if (b.score != null && t >= b.stamp) {
+    const k = clamp((t - b.stamp) / 0.18, 0, 1), sc = 1.9 - 0.9 * easeOut(k);
+    const col = b.score <= 3 ? '#ff5a5f' : b.score <= 6 ? '#ffa53f' : '#3ddc84';
+    g.save(); g.translate(W / 2, 1000); g.rotate(-0.13); g.scale(sc, sc); g.globalAlpha = k;
+    g.fillStyle = '#000'; circle(8, 10, 150);
+    g.fillStyle = col; circle(0, 0, 150);
+    g.lineWidth = 10; g.strokeStyle = '#fff'; g.beginPath(); g.arc(0, 0, 128, 0, Math.PI * 2); g.stroke();
+    g.fillStyle = '#14111c'; g.font = F.score; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(`${b.score}/10`, 0, 4);
+    g.restore(); g.textBaseline = 'alphabetic';
+  }
+}
+
+function draw(t) {
+  g.save();
+  const f = TL.s.format;
+  if (f === 'chat') drawChat(t); else if (f === 'pov') drawPov(t); else drawRank(t);
+  drawHook(t);
+  g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(0, H - 8, W, 8);
+  g.fillStyle = '#ffd23f'; g.fillRect(0, H - 8, W * clamp(t / TL.dur, 0, 1), 8);
+  g.restore();
+}
+
+// ---------- audio (all synthesized, so it records cleanly) ----------
+let A = null, NOISE = null;
+function audio() {
+  if (!A) {
+    A = new (window.AudioContext || window.webkitAudioContext)();
+    NOISE = A.createBuffer(1, A.sampleRate, A.sampleRate);
+    const d = NOISE.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  return A;
+}
+function tone(out, when, { type = 'sine', f0, f1, dur, gain = 0.3, attack = 0.005, lp }) {
+  const o = A.createOscillator(); o.type = type;
+  o.frequency.setValueAtTime(f0, when);
+  if (f1) o.frequency.exponentialRampToValueAtTime(f1, when + dur);
+  const gn = A.createGain();
+  gn.gain.setValueAtTime(0.0001, when);
+  gn.gain.exponentialRampToValueAtTime(gain, when + attack);
+  gn.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+  let node = o;
+  if (lp) { const f = A.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp; o.connect(f); node = f; }
+  node.connect(gn).connect(out);
+  o.start(when); o.stop(when + dur + 0.05);
+  return o;
+}
+function noise(out, when, { dur, gain = 0.2, type = 'bandpass', f0 = 2000, f1, q = 1 }) {
+  const s = A.createBufferSource(); s.buffer = NOISE;
+  const f = A.createBiquadFilter(); f.type = type; f.Q.value = q;
+  f.frequency.setValueAtTime(f0, when);
+  if (f1) f.frequency.exponentialRampToValueAtTime(f1, when + dur);
+  const gn = A.createGain();
+  gn.gain.setValueAtTime(gain, when); gn.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+  s.connect(f).connect(gn).connect(out);
+  s.start(when, Math.random() * 0.5); s.stop(when + dur + 0.05);
+}
+const SOUNDS = {
+  send: (o, w) => { tone(o, w, { f0: 700, f1: 1400, dur: 0.09, gain: 0.25 }); },
+  receive: (o, w) => { tone(o, w, { type: 'triangle', f0: 1320, dur: 0.22, gain: 0.18 }); tone(o, w + 0.07, { type: 'triangle', f0: 1760, dur: 0.28, gain: 0.16 }); },
+  typing: (o, w, dur) => { for (let x = 0; x < dur - 0.05; x += 0.085 + Math.random() * 0.04) noise(o, w + x, { dur: 0.025, gain: 0.12, f0: 3500, q: 2 }); },
+  whoosh: (o, w) => { noise(o, w, { dur: 0.28, gain: 0.22, f0: 400, f1: 4000, q: 0.8 }); },
+  tick: (o, w) => { tone(o, w, { f0: 1800, dur: 0.035, gain: 0.07 }); },
+  stamp: (o, w) => { tone(o, w, { f0: 140, f1: 50, dur: 0.25, gain: 0.7 }); noise(o, w, { dur: 0.08, gain: 0.35, type: 'lowpass', f0: 900 }); },
+  boom: (o, w) => {
+    const ws = A.createWaveShaper(), c = new Float32Array(256);
+    for (let i = 0; i < 256; i++) { const x = i / 128 - 1; c[i] = Math.tanh(x * 4); }
+    ws.curve = c; ws.connect(o);
+    tone(ws, w, { f0: 110, f1: 36, dur: 1.1, gain: 0.9 });
+    noise(o, w, { dur: 0.15, gain: 0.5, type: 'lowpass', f0: 250 });
+  },
+  scratch: (o, w) => {
+    noise(o, w, { dur: 0.16, gain: 0.5, f0: 2500, f1: 400, q: 3 });
+    noise(o, w + 0.16, { dur: 0.2, gain: 0.45, f0: 500, f1: 3000, q: 3 });
+  },
+  ding: (o, w) => { tone(o, w, { type: 'triangle', f0: 2093, dur: 1.0, gain: 0.25 }); tone(o, w, { f0: 4186, dur: 0.5, gain: 0.06 }); },
+  fail: (o, w) => {
+    const notes = [392, 370, 349, 311];
+    notes.forEach((f, i) => {
+      const last = i === 3, osc = tone(o, w + i * 0.34, { type: 'sawtooth', f0: f, dur: last ? 1.0 : 0.32, gain: 0.16, attack: 0.03, lp: 1300 });
+      if (last) {
+        const lfo = A.createOscillator(), lg = A.createGain();
+        lfo.frequency.value = 6; lg.gain.value = 8; lfo.connect(lg).connect(osc.frequency);
+        lfo.start(w + 1.02); lfo.stop(w + 2.1);
+      }
+    });
+  },
+  airhorn: (o, w) => {
+    [0, 0.2, 0.4].forEach((d, i) => {
+      const dur = i === 2 ? 0.55 : 0.16;
+      [415, 466, 523].forEach(f => tone(o, w + d, { type: 'sawtooth', f0: f, f1: f * 1.03, dur, gain: 0.09, attack: 0.01, lp: 2600 }));
+    });
+  },
+};
+function musicBed(out, t0, dur) {
+  const mg = A.createGain(); mg.gain.value = 0.55; mg.connect(out);
+  const beat = 60 / 104, bass = [65.41, 65.41, 98, 87.31, 73.42, 73.42, 98, 110];
+  for (let i = 0; i * beat < dur; i++) {
+    const w = t0 + i * beat;
+    tone(mg, w, { f0: 150, f1: 45, dur: 0.16, gain: 0.45 });
+    noise(mg, w + beat / 2, { dur: 0.04, gain: 0.08, type: 'highpass', f0: 7000 });
+    tone(mg, w + beat / 2, { type: 'square', f0: bass[i % 8], dur: beat * 0.42, gain: 0.07, lp: 500 });
+  }
+}
+function schedule(out, t0) {
+  const fx = $('sfx').checked, f = TL.s.format;
+  if (fx) SOUNDS.whoosh(out, t0);
+  for (const b of TL.beats) {
+    if (fx) {
+      if (f === 'chat') {
+        if (b.left) { SOUNDS.typing(out, t0 + b.start, b.typing); SOUNDS.receive(out, t0 + b.show); }
+        else SOUNDS.send(out, t0 + b.show);
+      } else if (f === 'pov') {
+        SOUNDS.whoosh(out, t0 + b.start);
+        const n = b.text.split(/\s+/).filter(Boolean).length, rv = b.read * 0.55;
+        for (let k = 1; k < n; k++) SOUNDS.tick(out, t0 + b.show + k * rv / n);
+      } else {
+        SOUNDS.whoosh(out, t0 + b.start);
+        if (b.score != null) SOUNDS.stamp(out, t0 + b.stamp);
+      }
+    }
+    if (b.sfx && SOUNDS[b.sfx]) SOUNDS[b.sfx](out, t0 + (f === 'ranking' ? b.stamp : b.show) + 0.04);
+  }
+  if ($('music').checked) musicBed(out, t0, TL.dur);
+}
+
+// ---------- playback + recording ----------
+let player = null, lastBlob = null;
+const fmt = s => { s = Math.max(0, s); return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`; };
+function status(msg, err) { const el = $('status'); el.textContent = msg; el.classList.toggle('err', !!err); }
+function setTc(t) { $('tc').textContent = `${fmt(t)} / ${fmt(TL.dur)}`; $('scrub').value = Math.round(clamp(t / TL.dur, 0, 1) * 1000); }
+function poster() { const t = TL.dur * ($('scrub').value / 1000); draw(t); setTc(t); }
+function stop(silent) {
+  if (!player) return;
+  cancelAnimationFrame(player.raf);
+  try { player.master.disconnect(); } catch (e) {}
+  const p = player; player = null;
+  $('play').textContent = 'Play with sound'; $('rec').disabled = false; $('rec').textContent = 'Record video';
+  if (p.rec && p.rec.state !== 'inactive') { p.aborted = !!silent || p.aborted; p.rec.stop(); }
+}
+function play(opts = {}) {
+  stop(true);
+  const ctx = audio(); ctx.resume();
+  const master = ctx.createGain(); master.gain.value = 0.9; master.connect(ctx.destination);
+  if (opts.dest) master.connect(opts.dest);
+  const t0 = ctx.currentTime + 0.2;
+  schedule(master, t0);
+  const p = { master, t0, raf: 0, rec: opts.rec || null, aborted: false };
+  const tick = () => {
+    const t = ctx.currentTime - t0;
+    draw(Math.max(0, t)); setTc(t);
+    if (t >= TL.dur + 0.15) {
+      if (p.rec) p.rec.stop();
+      player = null; try { master.disconnect(); } catch (e) {}
+      $('play').textContent = 'Play with sound'; $('rec').disabled = false; $('rec').textContent = 'Record video';
+      if (!p.rec) status('Done. Edit the script and play it again, or record it.');
+      return;
+    }
+    p.raf = requestAnimationFrame(tick);
+  };
+  p.raf = requestAnimationFrame(tick);
+  player = p;
+  $('play').textContent = 'Stop';
+  return p;
+}
+function pickType() {
+  if (!window.MediaRecorder) return null;
+  const types = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4;codecs=avc1,mp4a', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+  return types.find(t => { try { return MediaRecorder.isTypeSupported(t); } catch (e) { return false; } }) || '';
+}
+async function record() {
+  if (!window.MediaRecorder || !cv.captureStream) { status('This browser can’t record video. Try Chrome, or Safari on iOS 15 or later.', true); return; }
+  try { await document.fonts.ready; } catch (e) {}
+  const ctx = audio(); await ctx.resume();
+  const type = pickType();
+  const dest = ctx.createMediaStreamDestination();
+  const stream = new MediaStream([...cv.captureStream(30).getVideoTracks(), ...dest.stream.getAudioTracks()]);
+  let rec;
+  try { rec = new MediaRecorder(stream, Object.assign({ videoBitsPerSecond: 6000000 }, type ? { mimeType: type } : {})); }
+  catch (e) { status('Recording failed to start: ' + e.message, true); return; }
+  const chunks = [];
+  rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  rec.start(500);
+  const p = play({ dest, rec });
+  rec.onstop = () => {
+    stream.getTracks().forEach(tr => tr.stop());
+    if (p.aborted) { status('Recording stopped.'); return; }
+    const mime = (rec.mimeType || type || 'video/webm').split(';')[0];
+    lastBlob = new Blob(chunks, { type: mime });
+    const out = $('out'); if (out.src) URL.revokeObjectURL(out.src);
+    out.src = URL.createObjectURL(lastBlob);
+    $('result').hidden = false;
+    status(`Recorded ${fmt(TL.dur)} · ${(lastBlob.size / 1e6).toFixed(1)} MB ${mime.includes('mp4') ? 'MP4' : 'WebM'}. Check it, then save it.`);
+  };
+  $('rec').disabled = true; $('rec').textContent = 'Recording…';
+  status('Recording in real time. Keep this screen open until it finishes.');
+}
+async function saveVideo() {
+  if (!lastBlob) return;
+  const ext = lastBlob.type.includes('mp4') ? 'mp4' : 'webm';
+  const name = (TL.s.hook || 'short').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'short';
+  let dl = null;
+  try { dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null; } catch (e) {}
+  if (!dl) { status('Saving isn’t available in this view. Open the page in the Claude app or on claude.ai.', true); return; }
+  try {
+    await dl.save({ filename: `${name}.${ext}`, data: lastBlob });
+    status('Saved. Now upload it from the YouTube app (+ then Short).');
+  } catch (e) {
+    const c = e && e.code;
+    if (c === 'declined') status('Save cancelled.');
+    else if (c === 'rate_limited') status('A save prompt is already open. Finish that one first.', true);
+    else status('Couldn’t save the file here (' + (c || 'error') + ').', true);
+  }
+}
+
+// ---------- viral check ----------
+const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+function renderScore() {
+  const s = TL.s, n = TL.beats.length;
+  const hw = (s.hook || '').split(/\s+/).filter(Boolean).length;
+  const avg = n ? (TL.dur - 0.7) / n : 0;
+  const sfxN = s.beats.filter(b => b.sfx).length;
+  const first = norm(s.beats[0] && s.beats[0].text), last = norm(s.beats[n - 1] && s.beats[n - 1].text);
+  const loops = n > 1 && first && last && (first === last || last.includes(first) || first.includes(last));
+  const tl = (s.title || '').length;
+  const checks = [
+    { ok: hw > 0 && hw <= 9, pts: 20, label: 'Hook reads in one second', d: `${hw} words` },
+    { ok: TL.dur >= 12 && TL.dur <= 35, pts: 20, label: 'Runs 12–35 seconds', d: fmt(TL.dur) },
+    { ok: n >= 6 && avg <= 3.2, pts: 15, label: 'Something changes every 2–3 s', d: `${n} beats · ${avg.toFixed(1)} s` },
+    { ok: sfxN >= 1 && sfxN <= 4, pts: 15, label: 'Punchlines land on a sound', d: `${sfxN} cues` },
+    { ok: !!loops, pts: 15, label: 'Ending loops into the start', d: loops ? 'loops' : 'no loop' },
+    { ok: tl > 0 && tl <= 60, pts: 15, label: 'Title under 60 characters', d: `${tl} chars` },
+  ];
+  const pts = checks.reduce((a, c) => a + (c.ok ? c.pts : 0), 0);
+  $('pts').textContent = pts; $('barfill').style.width = pts + '%';
+  const ul = $('checks'); ul.textContent = '';
+  for (const c of checks) {
+    const li = document.createElement('li'); li.className = c.ok ? 'ok' : 'no';
+    const mk = document.createElement('span'); mk.className = 'mk'; mk.textContent = c.ok ? '✓' : '–';
+    const lb = document.createElement('span'); lb.textContent = c.label;
+    const sm = document.createElement('small'); sm.textContent = c.d;
+    li.append(mk, lb, sm); ul.append(li);
+  }
+}
+
+// ---------- state ----------
+let S, TL, isSample = true;
+const KEY = 'gagworks.v1';
+function persist() { try { localStorage.setItem(KEY, JSON.stringify({ S, isSample, handle: $('handle').value })); } catch (e) {} }
+function packDesc(s) {
+  const tags = (s.hashtags || []).filter(Boolean).map(h => h.startsWith('#') ? h : '#' + h);
+  if (!tags.some(h => h.toLowerCase() === '#shorts')) tags.push('#shorts');
+  return `${s.description || ''}\n\n${tags.join(' ')}`.trim();
+}
+function fillEditor() {
+  $('hook').value = S.hook || ''; $('script').value = toText(S);
+  $('ttl').value = S.title || ''; $('desc').value = S.packDesc || packDesc(S); $('pinned').value = S.pinned || '';
+  const r = document.querySelector(`#fmt input[value="${S.format}"]`); if (r) r.checked = true;
+}
+function setScript(s, { editor = true } = {}) {
+  stop(true);
+  S = s; TL = build(S);
+  if (editor) fillEditor();
+  renderScore(); poster(); persist();
+}
+function refresh() { stop(true); TL = build(S); renderScore(); poster(); persist(); }
+
+// ---------- writing ----------
+const FORMAT_DESC = {
+  chat: 'a fake text-message conversation shown as chat bubbles. Each beat is one message. "speaker" is the sender. Use "Me" for the phone owner (shown on the right) and ONE funny contact (a pet, mom, the landlord, the Wi-Fi router, an unknown number...). Messages are short and typed like real texts.',
+  pov: 'a POV caption video. Each beat is one big on-screen caption of at most 10 words. "speaker" is an optional short label such as a timestamp ("3:15 AM") or "Day 4"; keep it under 12 characters or leave it empty.',
+  ranking: 'a ranking video that rates items one at a time. "speaker" is the item (max 6 words), "text" is a deadpan verdict (max 9 words), "score" is an integer 0-11 (use one surprising 11 or 0 as the twist). Order the items so they escalate.',
+};
+function offline(topic, format) {
+  const t = (topic || IDEAS[Math.floor(Math.random() * IDEAS.length)]).trim();
+  const T = t.charAt(0).toUpperCase() + t.slice(1);
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+  if (format === 'chat') {
+    const c = pick(['Unknown Number', 'Mom', 'Landlord', 'Roommate']);
+    const v = pick([
+      [[c, 'u up?'], ['Me', 'it’s 3pm'], [c, 'perfect. i have news'], ['Me', 'oh no'], [c, `it’s about ${t}`], [c, 'don’t be mad'], ['Me', 'i’m already mad'], [c, 'then this won’t make it worse', 'boom'], ['Me', 'WHAT DID YOU DO'], [c, 'u up?']],
+      [[c, 'quick question'], ['Me', 'no'], [c, `how do u feel about ${t}`], ['Me', 'why'], [c, 'no reason'], [c, 'hypothetically'], [c, 'if there were 40 of them in the kitchen', 'boom'], ['Me', '...'], [c, '41 now', 'scratch'], [c, 'quick question']],
+    ]);
+    return { format, hook: `When ${t} gets a phone`, title: `${T} should not have a phone #shorts`.slice(0, 60),
+      description: 'Some texts should never be sent.', hashtags: ['#texting', '#funny', '#relatable'], pinned: 'Who would text you like this?',
+      beats: v.map(([speaker, text, sfx]) => ({ speaker, text, sfx: sfx || null })) };
+  }
+  if (format === 'pov') {
+    return { format, hook: `POV: you tried ${t}`, title: `Me after one week of ${t} #shorts`.slice(0, 60),
+      description: 'Day 7 hits different.', hashtags: ['#pov', '#relatable', '#funny'], pinned: 'What day did YOU give up?',
+      beats: [['Day 1', 'this is easy'], ['Day 2', 'okay this is slightly less easy'], ['Day 3', 'who designed this'], ['Day 4', 'I have become the problem', 'scratch'],
+        ['Day 5', `googling “is it normal to cry about ${t}”`], ['Day 6', 'I am now an expert', 'ding'], ['Day 7', 'this is easy', 'boom']]
+        .map(([speaker, text, sfx]) => ({ speaker, text, sfx: sfx || null })) };
+  }
+  return { format, hook: `Rating the stages of ${t}`, title: `Every stage of ${t}, rated #shorts`.slice(0, 60),
+    description: 'Stage 4 is a personal attack.', hashtags: ['#ranking', '#relatable', '#funny'], pinned: 'Which stage are you on right now?',
+    beats: [['The idea', 'sounds amazing in my head', 8], ['Telling my friends', 'nobody asked', 4], ['Actually starting', 'five minutes felt like a year', 3],
+      ['The first problem', 'a whole villain arc', 1, 'fail'], ['Pretending it’s fine', 'award-winning performance', 9], ['Doing it again tomorrow', 'I never learn', 11, 'airhorn']]
+      .map(([speaker, text, score, sfx]) => ({ speaker, text, score, sfx: sfx || null })) };
+}
+function cleanAI(r, format) {
+  if (!r || !Array.isArray(r.beats) || r.beats.length < 3) throw { code: 'shape' };
+  return {
+    format, hook: String(r.hook || '').slice(0, 80), title: String(r.title || '').slice(0, 100),
+    description: String(r.description || ''), pinned: String(r.pinned || ''),
+    hashtags: (Array.isArray(r.hashtags) ? r.hashtags : []).map(String).slice(0, 5),
+    beats: r.beats.slice(0, 14).map(b => ({
+      speaker: String(b.speaker || '').replace(/:\s*$/, '').slice(0, 40),
+      text: String(b.text || '').replace(/\[|\]/g, '').slice(0, 120),
+      sfx: SFX.includes(String(b.sfx || '').toLowerCase()) ? String(b.sfx).toLowerCase() : null,
+      score: format === 'ranking' && b.score != null && !isNaN(+b.score) ? clamp(Math.round(+b.score), 0, 99) : null,
+    })).filter(b => b.text || b.speaker),
+  };
+}
+let aiCtl = null;
+async function writeAI() {
+  if (aiCtl) { aiCtl.abort(); return; }
+  const format = document.querySelector('#fmt input:checked').value;
+  const tone = document.querySelector('#tone input:checked').value;
+  const topic = $('topic').value.trim() || IDEAS[Math.floor(Math.random() * IDEAS.length)];
+  $('topic').value = topic;
+  let sample = null;
+  try { sample = window.claude && window.claude.use ? await window.claude.use('sample') : null; } catch (e) {}
+  if (!sample) { $('aiNote').textContent = 'Claude writing only works when this page is open in Claude. Use Quick remix here instead.'; return; }
+  const prompt = `You are a comedy writer for viral YouTube Shorts. Write ONE short about: "${topic}".
+Format: ${FORMAT_DESC[format]}
+Tone: ${tone}.
+
+Follow this viral comedy structure exactly:
+- "hook": the premise as on-screen text, max 8 words, instantly readable. No "wait for it", no lies.
+- 7 to 11 beats (ranking: 5 to 7 items). Each beat is short. One premise only; every beat escalates it.
+- A twist at about 70% of the way through.
+- The final beat must lead straight back into the first beat (repeat or echo the first line) so the video loops seamlessly.
+- Tag 1 to 3 punchline beats with "sfx", chosen from: boom, scratch, ding, fail, airhorn. All other beats use null.
+- "title": under 55 characters, states the premise, ends with " #shorts".
+- "description": one funny sentence. "hashtags": 3 relevant hashtags. "pinned": a question for the pinned comment that makes viewers reply.
+- Original and clean: no real people, brands or celebrities, no slurs, don't punch down.
+
+Reply with JSON only, no prose:
+{"hook":"","title":"","description":"","hashtags":["#a","#b","#c"],"pinned":"","beats":[{"speaker":"","text":"","sfx":null${format === 'ranking' ? ',"score":7' : ''}}]}`;
+  aiCtl = new AbortController();
+  const btn = $('ai'); btn.textContent = 'Stop writing'; btn.classList.remove('primary');
+  $('aiNote').textContent = 'Claude is writing your bit. It can take up to a minute.';
+  try {
+    const r = await sample.json(prompt, { signal: aiCtl.signal, cache: false });
+    isSample = false;
+    setScript(cleanAI(r, format));
+    $('aiNote').textContent = 'Done. Play it, then punch up any line in the script editor.';
+  } catch (e) {
+    const c = e && e.code;
+    $('aiNote').textContent = c === 'cancelled' ? 'Stopped.' :
+      c === 'not_granted' ? 'Claude access was declined for this page. Quick remix still works.' :
+      c === 'rate_limited' ? 'Too many requests right now. Wait a minute and try again.' :
+      'Claude’s answer didn’t come back in a usable shape. Try again, or use Quick remix.';
+  } finally {
+    aiCtl = null; btn.textContent = 'Write it with Claude'; btn.classList.add('primary');
+  }
+}
+
+// ---------- wire up ----------
+let saved = null;
+try { saved = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
+if (saved && saved.S && Array.isArray(saved.S.beats) && saved.S.beats.length) {
+  isSample = !!saved.isSample; if (saved.handle != null) $('handle').value = saved.handle;
+  setScript(saved.S);
+} else setScript(clone(SAMPLES.chat));
+
+$('play').onclick = () => { if (player) { stop(true); status('Stopped.'); } else { status('Playing…'); play(); } };
+$('rec').onclick = record;
+$('save').onclick = saveVideo;
+$('scrub').oninput = () => { stop(true); poster(); };
+$('ai').onclick = writeAI;
+$('remix').onclick = () => { isSample = false; setScript(offline($('topic').value, document.querySelector('#fmt input:checked').value)); $('aiNote').textContent = 'Remixed from a template. Tap again for a different version.'; };
+$('idea').onclick = () => { $('topic').value = IDEAS[Math.floor(Math.random() * IDEAS.length)]; };
+document.querySelectorAll('#fmt input').forEach(r => r.onchange = () => {
+  if (isSample) setScript(clone(SAMPLES[r.value]));
+  else { S.format = r.value; setScript(S); }
+});
+let deb;
+$('script').oninput = () => { clearTimeout(deb); deb = setTimeout(() => { isSample = false; S.beats = parseText($('script').value, S.format); if (!S.beats.length) S.beats = [{ speaker: '', text: '…' }]; refresh(); }, 250); };
+$('hook').oninput = () => { isSample = false; S.hook = $('hook').value; refresh(); };
+$('ttl').oninput = () => { S.title = $('ttl').value; renderScore(); persist(); };
+$('desc').oninput = () => { S.packDesc = $('desc').value; persist(); };
+$('pinned').oninput = () => { S.pinned = $('pinned').value; persist(); };
+$('handle').oninput = () => { if (!player) poster(); persist(); };
+['music', 'sfx'].forEach(id => $(id).onchange = () => { if (player) { stop(true); play(); } });
+document.querySelectorAll('[data-copy]').forEach(b => b.onclick = async () => {
+  const el = $(b.dataset.copy), old = b.textContent;
+  try { await navigator.clipboard.writeText(el.value); b.textContent = 'Copied'; }
+  catch (e) { el.focus(); el.select(); b.textContent = 'Selected, copy it'; }
+  setTimeout(() => b.textContent = old, 1500);
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden && player && player.rec) { stop(true); status('Recording stopped because the screen was hidden. Keep it open while recording.', true); } });
+Promise.all(['800 52px "Bricolage Grotesque"', '500 36px Figtree', '500 30px "JetBrains Mono"', 'italic 500 40px Figtree'].map(f => document.fonts.load(f).catch(() => {})))
+  .then(() => { if (!player) poster(); });
+})();
+</script>
