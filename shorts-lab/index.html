@@ -104,6 +104,18 @@ textarea.code { font: 14px/1.6 var(--mono); min-height: 240px; }
 .checks .no .mk { color: var(--fg); background: var(--line); }
 .checks small { color: var(--mut); font: 500 12px var(--mono); text-align: right; }
 
+.cast { display: grid; gap: 12px; }
+.cast-card { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--bay); }
+.thumb { width: 72px; height: 104px; border-radius: 10px; border: 1px dashed var(--line); background: var(--panel) center / contain no-repeat; display: grid; place-items: center; text-align: center; font: 500 11px var(--mono); color: var(--mut); overflow: hidden; }
+.thumb.has { border-style: solid; color: transparent; }
+.cast-card .fields { display: grid; gap: 8px; min-width: 0; }
+.cast-card .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+select { font: 15px var(--body); color: var(--fg); background: var(--bay); border: 1px solid var(--line); border-radius: 12px; padding: 10px; width: 100%; }
+.cast-card select { background: var(--panel); }
+.filebtn { position: relative; display: inline-flex; align-items: center; font: 600 13px var(--body); color: var(--butter-ink); background: var(--butter); border-radius: 999px; padding: 8px 12px; min-height: 36px; box-sizing: border-box; cursor: pointer; }
+.filebtn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.filebtn:focus-within { outline: 2px solid var(--fg); outline-offset: 2px; }
+.swatch { width: 14px; height: 14px; border-radius: 50%; display: inline-block; vertical-align: -2px; margin-right: 6px; border: 2px solid var(--fg); }
 .legend { display: flex; flex-wrap: wrap; gap: 6px; }
 .legend code { font: 500 12px var(--mono); background: var(--bay); border: 1px solid var(--line); border-radius: 6px; padding: 3px 7px; color: var(--butter); }
 
@@ -137,6 +149,7 @@ textarea.code { font: 14px/1.6 var(--mono); min-height: 240px; }
       <div class="toggles">
         <label><input type="checkbox" id="music" checked> Beat under it</label>
         <label><input type="checkbox" id="sfx" checked> Sound effects</label>
+        <label><input type="checkbox" id="voices" checked> Character voices</label>
       </div>
       <p id="status" role="status">Tap Play to preview. iPhone: turn the silent switch off to hear it.</p>
       <div class="result" id="result" hidden>
@@ -153,7 +166,8 @@ textarea.code { font: 14px/1.6 var(--mono); min-height: 240px; }
         </label>
         <fieldset class="seg" id="fmt">
           <legend>Format</legend>
-          <input type="radio" name="fmt" id="f-chat" value="chat" checked><label for="f-chat">Text thread</label>
+          <input type="radio" name="fmt" id="f-skit" value="skit" checked><label for="f-skit">Character skit</label>
+          <input type="radio" name="fmt" id="f-chat" value="chat"><label for="f-chat">Text thread</label>
           <input type="radio" name="fmt" id="f-pov" value="pov"><label for="f-pov">POV captions</label>
           <input type="radio" name="fmt" id="f-ranking" value="ranking"><label for="f-ranking">Ranking /10</label>
         </fieldset>
@@ -170,6 +184,38 @@ textarea.code { font: 14px/1.6 var(--mono); min-height: 240px; }
           <button id="idea" class="small">Random idea</button>
         </div>
         <p class="hint" id="aiNote">Claude writes the script following the viral blueprint below. Quick remix fills a proven template with your topic and works offline.</p>
+      </section>
+
+      <section class="panel" id="castPanel" aria-labelledby="h-cast">
+        <h2 id="h-cast"><span>Step 1b</span>Your characters</h2>
+        <p class="hint">Make each character in ChatGPT with the prompt button, save the image, then upload it here. White or plain backgrounds are removed automatically. No image yet? A cartoon stand-in plays the part.</p>
+        <label class="f" for="artStyle">Art style for the ChatGPT prompts
+          <select id="artStyle">
+            <option value="glossy 3D animated movie style, soft lighting">3D animated movie</option>
+            <option value="flat 2D cartoon, thick black outlines, bold colors">Flat 2D cartoon</option>
+            <option value="anime style, clean cel shading">Anime</option>
+            <option value="claymation stop-motion style, visible clay texture">Claymation</option>
+            <option value="chunky pixel art, limited palette">Pixel art</option>
+          </select>
+        </label>
+        <div class="cast" id="castList"></div>
+        <div class="row"><button id="addChar" class="small">Add character</button></div>
+        <div class="cast-card" id="sceneCard">
+          <div class="thumb" id="sceneThumb">No scene</div>
+          <div class="fields">
+            <label class="f" for="sceneDesc">Scene
+              <input type="text" id="sceneDesc" placeholder="a cozy kitchen counter in the morning" autocomplete="off">
+            </label>
+            <div class="row">
+              <label class="filebtn">Upload background<input type="file" id="sceneFile" accept="image/*"></label>
+              <button class="small" id="scenePrompt">ChatGPT prompt</button>
+              <button class="small" id="sceneClear">Clear</button>
+            </div>
+          </div>
+        </div>
+        <label class="f" for="promptOut">Last copied prompt (paste it into ChatGPT)
+          <textarea id="promptOut" rows="4" readonly></textarea>
+        </label>
       </section>
 
       <section class="panel" aria-labelledby="h-score">
@@ -189,7 +235,7 @@ textarea.code { font: 14px/1.6 var(--mono); min-height: 240px; }
           <textarea id="script" class="code" spellcheck="false"></textarea>
         </label>
         <div class="legend" aria-label="Sound tags"><code>[boom]</code><code>[scratch]</code><code>[ding]</code><code>[fail]</code><code>[airhorn]</code><code>7/10</code></div>
-        <p class="hint">Text thread: name the phone owner <b>Me</b> and they show on the right. Ranking: end a line with a score like <b>7/10</b>. Edits update the preview live.</p>
+        <p class="hint">Character skit: start each line with the character's name exactly as in Your characters, or <b>Narrator</b> for a caption with no speaker. Text thread: name the phone owner <b>Me</b> and they show on the right. Ranking: end a line with a score like <b>7/10</b>. Edits update the preview live.</p>
       </section>
 
       <section class="panel" aria-labelledby="h-pack">
@@ -253,7 +299,27 @@ const F = {
   bubble: '500 36px Figtree, system-ui, sans-serif',
 };
 
+const COLORS = ['#f2b25c', '#9fb3c8', '#b78cff', '#7be08a', '#ff6fa8'];
+const VOICES = { low: 95, mid: 170, high: 280, tiny: 440 };
+const DEFAULT_CAST = [
+  { name: 'Toast', desc: 'a nervous slice of toast with big worried eyes and tiny arms', voice: 'high', color: '#f2b25c', img: null },
+  { name: 'Toaster', desc: 'a dramatic chrome toaster with a soap-opera attitude and raised eyebrows', voice: 'low', color: '#9fb3c8', img: null },
+];
 const SAMPLES = {
+  skit: { format: 'skit', hook: 'The toaster has trust issues',
+    title: 'Toast just wanted to come inside #shorts',
+    description: 'Breakfast is a toxic relationship.', hashtags: ['#animation', '#funny', '#skit'],
+    pinned: 'Whose side are you on: Toast or Toaster?',
+    beats: [
+      { speaker: 'Toast', text: 'hey… can I come in?' },
+      { speaker: 'Toaster', text: 'last time you burned me' },
+      { speaker: 'Toast', text: 'YOU burned ME' },
+      { speaker: 'Toaster', text: 'we don’t talk about that', sfx: 'scratch' },
+      { speaker: 'Toast', text: 'it’s really cold out here' },
+      { speaker: 'Toaster', text: 'fine. two minutes' },
+      { speaker: 'Toast', text: 'ONE minute' },
+      { speaker: 'Toaster', text: 'five. and you will LIKE it', sfx: 'boom' },
+      { speaker: 'Toast', text: 'hey… can I come in?' } ] },
   chat: { format: 'chat', hook: 'My dog texting me while I’m at work',
     title: 'My dog has questions about my job #shorts',
     description: 'He means well. The couch disagrees.', hashtags: ['#dog', '#texting', '#funny'],
@@ -324,6 +390,15 @@ function build(s) {
   const speakers = [...new Set(s.beats.map(b => b.speaker).filter(Boolean))];
   const me = speakers.find(n => /^(me|you|i)$/i.test(n)) || speakers[1] || '\u0000';
   const lefts = speakers.filter(n => n !== me);
+  let roster = [];
+  if (s.format === 'skit') {
+    const names = speakers.filter(n => !/^narrator$/i.test(n)).slice(0, 3);
+    const src = names.length ? names : CAST.slice(0, 2).map(c => c.name);
+    roster = src.map((n, i) => {
+      const c = CAST.find(c => c.name.trim().toLowerCase() === n.trim().toLowerCase());
+      return { name: n, color: (c && c.color) || COLORS[i % COLORS.length], voice: (c && c.voice) || ['mid', 'low', 'high'][i % 3], img: (c && c.img) || null };
+    });
+  }
   let t = 0.7;
   const beats = s.beats.map(b => {
     const words = (b.text || '').split(/\s+/).filter(Boolean).length + (s.format === 'ranking' ? (b.speaker || '').split(/\s+/).filter(Boolean).length : 0);
@@ -331,11 +406,20 @@ function build(s) {
     const typing = left ? 0.6 : 0;
     let read = clamp(0.8 + words * 0.27, 1.2, 3.6);
     if (s.format === 'ranking') read = clamp(read + 0.9, 2.3, 4.4);
+    if (s.format === 'skit') read = clamp(0.9 + words * 0.3, 1.4, 4);
     const start = t, show = t + typing, end = show + read;
     t = end;
-    return { ...b, start, show, end, read, left, typing, stamp: show + read * 0.45 };
+    const out = { ...b, start, show, end, read, left, typing, stamp: show + read * 0.45, slot: -1, syl: [] };
+    if (s.format === 'skit') {
+      out.slot = roster.findIndex(r => r.name.toLowerCase() === (b.speaker || '').toLowerCase());
+      if (out.slot >= 0) {
+        const n = clamp(Math.round(words * 1.6), 2, 28), span = Math.min(read * 0.85, n * 0.12);
+        for (let k = 0; k < n; k++) out.syl.push(show + k * span / n);
+      }
+    }
+    return out;
   });
-  return { s, beats, me, lefts, contact: lefts[0] || 'Unknown Number', dur: t + 0.4 };
+  return { s, beats, me, lefts, roster, contact: lefts[0] || 'Unknown Number', dur: t + 0.4 };
 }
 
 // ---------- drawing ----------
@@ -461,8 +545,12 @@ function drawPov(t) {
   gr.addColorStop(0, `hsl(${hue}, 55%, 24%)`); gr.addColorStop(1, `hsl(${(hue + 40) % 360}, 60%, 8%)`);
   g.fillStyle = gr; g.fillRect(0, 0, W, H);
   if (!b || t < b.start) return;
+  drawCaption(b, t, H * 0.55, F.cap, 92, '#ffd23f', true);
+}
+
+function drawCaption(b, t, cy, font, lh, labelColor, upperLabel) {
   const words = b.text.split(/\s+/).filter(Boolean);
-  g.font = F.cap;
+  g.font = font;
   const space = g.measureText(' ').width, lines = [];
   let ln = [], lw = 0;
   for (const w of words) {
@@ -474,15 +562,16 @@ function drawPov(t) {
   const reveal = b.read * 0.55;
   const shown = clamp(Math.floor((t - b.show) / reveal * words.length) + 1, 0, words.length);
   const sc = 1 + 0.1 * (1 - easeOut(clamp((t - b.start) / 0.2, 0, 1)));
-  const lh = 92, blockH = lines.length * lh;
-  g.save(); g.translate(W / 2, H * 0.55); g.scale(sc, sc);
-  if (b.speaker) {
+  const blockH = lines.length * lh;
+  g.save(); g.translate(W / 2, cy); g.scale(sc, sc);
+  if (b.speaker && !/^narrator$/i.test(b.speaker)) {
+    const label = upperLabel ? b.speaker.toUpperCase() : b.speaker;
     g.font = F.label; g.textAlign = 'center';
-    const tw = g.measureText(b.speaker.toUpperCase()).width + 36;
-    g.fillStyle = 'rgba(0,0,0,.55)'; rr(-tw / 2, -blockH / 2 - 96, tw, 52, 12); g.fill();
-    g.fillStyle = '#ffd23f'; g.fillText(b.speaker.toUpperCase(), 0, -blockH / 2 - 60);
+    const tw = g.measureText(label).width + 36;
+    g.fillStyle = 'rgba(0,0,0,.6)'; rr(-tw / 2, -blockH / 2 - 96, tw, 52, 12); g.fill();
+    g.fillStyle = labelColor; g.fillText(label, 0, -blockH / 2 - 60);
   }
-  g.font = F.cap; g.textAlign = 'left';
+  g.font = font; g.textAlign = 'left';
   let n = 0;
   lines.forEach((line, li) => {
     const w = line.reduce((a, x) => a + x.width, 0) + space * (line.length - 1);
@@ -529,10 +618,91 @@ function drawRank(t) {
   }
 }
 
+const IMGS = new Map();
+function imgFor(src) {
+  if (!src) return null;
+  let im = IMGS.get(src);
+  if (!im) { im = new Image(); im.onload = () => { if (!player) poster(); }; im.src = src; IMGS.set(src, im); }
+  return im.complete && im.naturalWidth ? im : null;
+}
+const mouthOpen = (b, t) => b.syl.some(s => t >= s && t < s + 0.08);
+function drawBlob(c, h, open, look, t, k) {
+  const w = h * 0.78, ink = '#1a1424';
+  g.beginPath(); g.moveTo(-w / 2, -6); g.bezierCurveTo(-w / 2, -h * 1.05, w / 2, -h * 1.05, w / 2, -6); g.closePath();
+  g.fillStyle = c.color; g.fill(); g.lineWidth = 8; g.strokeStyle = ink; g.stroke();
+  g.fillStyle = 'rgba(255,255,255,.2)'; g.beginPath(); g.ellipse(-w * 0.2, -h * 0.64, w * 0.1, h * 0.06, -0.5, 0, Math.PI * 2); g.fill();
+  const ey = -h * 0.56, ex = w * 0.16, blink = ((t + k * 1.37) % 3.4) < 0.12;
+  for (const s of [-1, 1]) {
+    if (blink) { g.strokeStyle = ink; g.lineWidth = 6; g.beginPath(); g.moveTo(s * ex - w * 0.08, ey); g.lineTo(s * ex + w * 0.08, ey); g.stroke(); continue; }
+    g.fillStyle = '#fff'; g.beginPath(); g.arc(s * ex, ey, w * 0.1, 0, Math.PI * 2); g.fill();
+    g.lineWidth = 5; g.strokeStyle = ink; g.stroke();
+    g.fillStyle = ink; circle(s * ex + look * w * 0.04, ey + 3, w * 0.048);
+  }
+  const my = -h * 0.36;
+  g.fillStyle = 'rgba(255,111,145,.45)';
+  circle(-w * 0.28, my - w * 0.03, w * 0.055); circle(w * 0.28, my - w * 0.03, w * 0.055);
+  if (open) {
+    g.fillStyle = '#2b0f1a'; g.beginPath(); g.ellipse(0, my, w * 0.12, w * 0.1, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#ff6f91'; g.beginPath(); g.ellipse(0, my + w * 0.05, w * 0.07, w * 0.035, 0, 0, Math.PI * 2); g.fill();
+  } else {
+    g.strokeStyle = ink; g.lineWidth = 7; g.beginPath(); g.arc(0, my - w * 0.06, w * 0.09, 0.2 * Math.PI, 0.8 * Math.PI); g.stroke();
+  }
+}
+function drawSkit(t) {
+  const i = curIndex(t), b = TL.beats[i], R = TL.roster, n = R.length;
+  const live = b && t >= b.start;
+  const active = live ? b.slot : -1;
+  const xs = n <= 1 ? [0.5] : n === 2 ? [0.28, 0.72] : [0.19, 0.5, 0.81];
+  const base = H - 150, ch = n >= 3 ? 450 : 540;
+  let z = 1, cx = W / 2, cy = H / 2, sx = 0, sy = 0;
+  if (live && b.sfx && t >= b.show && active >= 0) {
+    z = 1 + 0.25 * easeOut(clamp((t - b.show) / 0.15, 0, 1));
+    cx = xs[active] * W; cy = base - ch * 0.5;
+    if (b.sfx === 'boom' || b.sfx === 'airhorn') {
+      const d = Math.max(0, 1 - (t - b.show) / 0.45);
+      sx = Math.sin(t * 70) * 14 * d; sy = Math.cos(t * 55) * 10 * d;
+    }
+  }
+  g.save(); g.translate(cx + sx, cy + sy); g.scale(z, z); g.translate(-cx, -cy);
+  const bg = imgFor(SCENE.img);
+  if (bg) {
+    const s = Math.max(W / bg.naturalWidth, H / bg.naturalHeight), dw = bg.naturalWidth * s, dh = bg.naturalHeight * s;
+    g.drawImage(bg, (W - dw) / 2, (H - dh) / 2, dw, dh);
+  } else {
+    const gr = g.createLinearGradient(0, 0, 0, H);
+    gr.addColorStop(0, '#3a2f63'); gr.addColorStop(0.7, '#f08a6c'); gr.addColorStop(1, '#f6c27a');
+    g.fillStyle = gr; g.fillRect(-40, -40, W + 80, H + 80);
+    g.fillStyle = '#5a3d2e'; g.fillRect(-40, base - 30, W + 80, H);
+    g.fillStyle = '#6f4c39'; g.fillRect(-40, base - 30, W + 80, 18);
+  }
+  R.forEach((c, k) => {
+    const x = xs[k] * W, speaking = k === active;
+    const open = speaking && mouthOpen(b, t);
+    const look = active >= 0 && active !== k ? Math.sign(xs[active] - xs[k]) : (k === 0 ? 0.6 : -0.6);
+    const sc = speaking ? 1.06 : 1, breathe = 1 + Math.sin(t * 2.2 + k) * 0.012;
+    g.save(); g.translate(x, base + (open ? -10 : 0));
+    g.fillStyle = 'rgba(0,0,0,.28)'; g.beginPath(); g.ellipse(0, open ? 10 : 0, ch * 0.26, 16, 0, 0, Math.PI * 2); g.fill();
+    g.scale(sc, sc * breathe * (open ? 0.975 : 1));
+    if (active >= 0 && !speaking) g.globalAlpha = 0.85;
+    const im = imgFor(c.img);
+    if (im) {
+      const bw = n >= 3 ? 240 : 330, s = Math.min(bw / im.naturalWidth, ch / im.naturalHeight);
+      const dw = im.naturalWidth * s, dh = im.naturalHeight * s;
+      g.drawImage(im, -dw / 2, -dh, dw, dh);
+    } else drawBlob(c, ch * 0.78, open, look, t, k);
+    g.restore();
+  });
+  g.restore();
+  if (live) {
+    const col = active >= 0 ? R[active].color : '#ffd23f';
+    drawCaption(b, t, (hookBottom() + base - ch * 0.82) / 2 + 30, '800 66px "Bricolage Grotesque", "Arial Black", sans-serif', 76, col, false);
+  }
+}
+
 function draw(t) {
   g.save();
   const f = TL.s.format;
-  if (f === 'chat') drawChat(t); else if (f === 'pov') drawPov(t); else drawRank(t);
+  if (f === 'chat') drawChat(t); else if (f === 'pov') drawPov(t); else if (f === 'skit') drawSkit(t); else drawRank(t);
   drawHook(t);
   g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(0, H - 8, W, 8);
   g.fillStyle = '#ffd23f'; g.fillRect(0, H - 8, W * clamp(t / TL.dur, 0, 1), 8);
@@ -610,6 +780,20 @@ const SOUNDS = {
     });
   },
 };
+function babble(out, when, base) {
+  const o = A.createOscillator(); o.type = 'square';
+  const f = base * (0.85 + Math.random() * 0.5);
+  o.frequency.setValueAtTime(f, when);
+  o.frequency.linearRampToValueAtTime(f * (0.88 + Math.random() * 0.3), when + 0.07);
+  const bp = A.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 2.5;
+  bp.frequency.value = [700, 1000, 1400, 2000][Math.floor(Math.random() * 4)];
+  const gn = A.createGain();
+  gn.gain.setValueAtTime(0.0001, when);
+  gn.gain.exponentialRampToValueAtTime(0.4, when + 0.01);
+  gn.gain.exponentialRampToValueAtTime(0.0001, when + 0.075);
+  o.connect(bp).connect(gn).connect(out);
+  o.start(when); o.stop(when + 0.1);
+}
 function musicBed(out, t0, dur) {
   const mg = A.createGain(); mg.gain.value = 0.55; mg.connect(out);
   const beat = 60 / 104, bass = [65.41, 65.41, 98, 87.31, 73.42, 73.42, 98, 110];
@@ -624,8 +808,14 @@ function schedule(out, t0) {
   const fx = $('sfx').checked, f = TL.s.format;
   if (fx) SOUNDS.whoosh(out, t0);
   for (const b of TL.beats) {
+    if (f === 'skit' && b.slot >= 0 && $('voices').checked) {
+      const base = VOICES[TL.roster[b.slot].voice] || VOICES.mid;
+      for (const s of b.syl) babble(out, t0 + s, base);
+    }
     if (fx) {
-      if (f === 'chat') {
+      if (f === 'skit') {
+        if (b.slot < 0) SOUNDS.whoosh(out, t0 + b.start);
+      } else if (f === 'chat') {
         if (b.left) { SOUNDS.typing(out, t0 + b.start, b.typing); SOUNDS.receive(out, t0 + b.show); }
         else SOUNDS.send(out, t0 + b.show);
       } else if (f === 'pov') {
@@ -763,7 +953,138 @@ function renderScore() {
 
 // ---------- state ----------
 let S, TL, isSample = true;
-const KEY = 'gagworks.v1';
+let CAST = clone(DEFAULT_CAST), SCENE = { desc: 'a cozy kitchen counter in the morning', img: null };
+const KEY = 'gagworks.v1', CAST_KEY = 'gagworks.cast.v1';
+function persistCast() {
+  try { localStorage.setItem(CAST_KEY, JSON.stringify({ CAST, SCENE, style: $('artStyle').value })); }
+  catch (e) { status('Images are too big to remember after you close the page. They work until then.', true); }
+}
+try {
+  const c = JSON.parse(localStorage.getItem(CAST_KEY) || 'null');
+  if (c && Array.isArray(c.CAST)) { CAST = c.CAST; SCENE = c.SCENE || SCENE; if (c.style) $('artStyle').value = c.style; }
+} catch (e) {}
+
+// ---------- characters ----------
+function charPrompt(c) {
+  return `Create one full-body character for a funny animated YouTube Short.
+Character: ${c.name}, ${c.desc || 'a funny cartoon character'}.
+Style: ${$('artStyle').value}.
+Big expressive face, clear silhouette, standing and facing the viewer, mouth slightly open, whole body in frame with space around it.
+Plain transparent background (or solid white if transparency isn't possible). PNG, portrait 2:3. No text, no floor, no shadow.
+I will reuse this exact design in every episode, so keep it simple and iconic.`;
+}
+function scenePrompt() {
+  return `Create a vertical 9:16 background image for an animated comedy YouTube Short.
+Scene: ${SCENE.desc || 'a cozy kitchen counter in the morning'}.
+Style: ${$('artStyle').value}.
+Empty scene with no characters and no text. Keep the lower third open and fairly plain, because two characters will stand there. Slightly soft focus so characters pop in front.`;
+}
+async function giveCopy(text, btn) {
+  $('promptOut').value = text;
+  const old = btn.textContent;
+  try { await navigator.clipboard.writeText(text); btn.textContent = 'Copied'; }
+  catch (e) { $('promptOut').focus(); $('promptOut').select(); btn.textContent = 'Select below'; }
+  setTimeout(() => btn.textContent = old, 1500);
+}
+function removeBorderBg(ctx, w, h) {
+  const im = ctx.getImageData(0, 0, w, h), d = im.data;
+  const at = (x, y) => (y * w + x) * 4;
+  const corners = [at(0, 0), at(w - 1, 0), at(0, h - 1), at(w - 1, h - 1)];
+  if (corners.every(i => d[i + 3] < 20)) return;
+  const ref = corners[0], tol = 42;
+  const near = i => d[i + 3] > 20 && Math.abs(d[i] - d[ref]) + Math.abs(d[i + 1] - d[ref + 1]) + Math.abs(d[i + 2] - d[ref + 2]) < tol * 3;
+  if (corners.filter(near).length < 3) return;
+  const seen = new Uint8Array(w * h), stack = [];
+  for (let x = 0; x < w; x++) { stack.push(x, (h - 1) * w + x); }
+  for (let y = 0; y < h; y++) { stack.push(y * w, y * w + w - 1); }
+  while (stack.length) {
+    const p = stack.pop();
+    if (seen[p]) continue; seen[p] = 1;
+    const i = p * 4; if (!near(i)) continue;
+    d[i + 3] = 0;
+    const x = p % w, y = (p / w) | 0;
+    if (x > 0) stack.push(p - 1); if (x < w - 1) stack.push(p + 1);
+    if (y > 0) stack.push(p - w); if (y < h - 1) stack.push(p + w);
+  }
+  ctx.putImageData(im, 0, 0);
+}
+function readImage(file, isBg) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), im = new Image();
+    im.onload = () => {
+      const max = isBg ? 1280 : 720, s = Math.min(1, max / Math.max(im.naturalWidth, im.naturalHeight));
+      const w = Math.round(im.naturalWidth * s), h = Math.round(im.naturalHeight * s);
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      const cx = c.getContext('2d'); cx.drawImage(im, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      if (isBg) return res(c.toDataURL('image/jpeg', 0.85));
+      removeBorderBg(cx, w, h);
+      const box = cx.getImageData(0, 0, w, h).data;
+      let x0 = w, y0 = h, x1 = 0, y1 = 0;
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (box[(y * w + x) * 4 + 3] > 20) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      if (x1 <= x0 || y1 <= y0) return res(c.toDataURL('image/png'));
+      const t = document.createElement('canvas'); t.width = x1 - x0 + 1; t.height = y1 - y0 + 1;
+      t.getContext('2d').drawImage(c, x0, y0, t.width, t.height, 0, 0, t.width, t.height);
+      res(t.toDataURL('image/png'));
+    };
+    im.onerror = () => { URL.revokeObjectURL(url); rej(new Error('That file isn’t an image this browser can open.')); };
+    im.src = url;
+  });
+}
+function castChanged() { persistCast(); renderCast(); refresh(); }
+function renderCast() {
+  const box = $('castList'); box.textContent = '';
+  CAST.forEach((c, i) => {
+    const card = document.createElement('div'); card.className = 'cast-card';
+    card.innerHTML = `<div class="thumb"></div>
+      <div class="fields">
+        <div class="two">
+          <label class="f">Name<input type="text" autocomplete="off" data-k="name"></label>
+          <label class="f">Voice<select data-k="voice"><option value="low">Deep</option><option value="mid">Normal</option><option value="high">High</option><option value="tiny">Squeaky</option></select></label>
+        </div>
+        <label class="f">Looks like<input type="text" autocomplete="off" data-k="desc" placeholder="a grumpy cactus in sunglasses"></label>
+        <div class="row">
+          <label class="filebtn">Upload image<input type="file" accept="image/*"></label>
+          <button class="small" data-act="prompt">ChatGPT prompt</button>
+          <button class="small" data-act="clear">Remove image</button>
+          <button class="small" data-act="del">Delete</button>
+        </div>
+      </div>`;
+    const th = card.querySelector('.thumb');
+    if (c.img) { th.classList.add('has'); th.style.backgroundImage = `url(${c.img})`; }
+    else { th.innerHTML = `<span><i class="swatch" style="background:${c.color}"></i><br>stand-in</span>`; }
+    const name = card.querySelector('[data-k=name]'), desc = card.querySelector('[data-k=desc]'), voice = card.querySelector('[data-k=voice]');
+    name.id = `cast${i}-name`; desc.id = `cast${i}-desc`; voice.id = `cast${i}-voice`;
+    name.value = c.name; desc.value = c.desc || ''; voice.value = c.voice || 'mid';
+    name.onchange = () => {
+      const old = c.name, nu = name.value.trim() || old;
+      c.name = nu;
+      if (old !== nu) {
+        S.beats.forEach(b => { if ((b.speaker || '').toLowerCase() === old.toLowerCase()) b.speaker = nu; });
+        $('script').value = toText(S);
+      }
+      castChanged();
+    };
+    desc.onchange = () => { c.desc = desc.value.trim(); persistCast(); };
+    voice.onchange = () => { c.voice = voice.value; castChanged(); };
+    card.querySelector('input[type=file]').onchange = async e => {
+      const f = e.target.files[0]; if (!f) return;
+      status('Processing image…');
+      try { c.img = await readImage(f, false); castChanged(); status(`${c.name} is ready. Tap Play.`); }
+      catch (err) { status(err.message, true); }
+    };
+    card.querySelector('[data-act=prompt]').onclick = e => giveCopy(charPrompt(c), e.target);
+    card.querySelector('[data-act=clear]').onclick = () => { c.img = null; castChanged(); };
+    card.querySelector('[data-act=del]').onclick = () => { CAST.splice(i, 1); castChanged(); };
+    box.append(card);
+  });
+  $('addChar').disabled = CAST.length >= 3;
+  const st = $('sceneThumb');
+  if (SCENE.img) { st.classList.add('has'); st.style.backgroundImage = `url(${SCENE.img})`; st.textContent = ''; }
+  else { st.classList.remove('has'); st.style.backgroundImage = ''; st.textContent = 'No scene'; }
+  $('sceneDesc').value = SCENE.desc || '';
+  $('castPanel').hidden = S.format !== 'skit';
+}
 function persist() { try { localStorage.setItem(KEY, JSON.stringify({ S, isSample, handle: $('handle').value })); } catch (e) {} }
 function packDesc(s) {
   const tags = (s.hashtags || []).filter(Boolean).map(h => h.startsWith('#') ? h : '#' + h);
@@ -779,12 +1100,13 @@ function setScript(s, { editor = true } = {}) {
   stop(true);
   S = s; TL = build(S);
   if (editor) fillEditor();
-  renderScore(); poster(); persist();
+  renderCast(); renderScore(); poster(); persist();
 }
 function refresh() { stop(true); TL = build(S); renderScore(); poster(); persist(); }
 
 // ---------- writing ----------
 const FORMAT_DESC = {
+  skit: 'an animated comedy skit between 2 (at most 3) cartoon characters standing side by side who talk to each other. Each beat is one spoken line of at most 12 words. "speaker" is the character name exactly. Great characters are everyday objects, animals or appliances with huge personalities and a clear conflict between them.',
   chat: 'a fake text-message conversation shown as chat bubbles. Each beat is one message. "speaker" is the sender. Use "Me" for the phone owner (shown on the right) and ONE funny contact (a pet, mom, the landlord, the Wi-Fi router, an unknown number...). Messages are short and typed like real texts.',
   pov: 'a POV caption video. Each beat is one big on-screen caption of at most 10 words. "speaker" is an optional short label such as a timestamp ("3:15 AM") or "Day 4"; keep it under 12 characters or leave it empty.',
   ranking: 'a ranking video that rates items one at a time. "speaker" is the item (max 6 words), "text" is a deadpan verdict (max 9 words), "score" is an integer 0-11 (use one surprising 11 or 0 as the twist). Order the items so they escalate.',
@@ -793,6 +1115,17 @@ function offline(topic, format) {
   const t = (topic || IDEAS[Math.floor(Math.random() * IDEAS.length)]).trim();
   const T = t.charAt(0).toUpperCase() + t.slice(1);
   const pick = a => a[Math.floor(Math.random() * a.length)];
+  if (format === 'skit') {
+    if (CAST.length < 2) { CAST = clone(DEFAULT_CAST); persistCast(); }
+    const a = CAST[0].name, b = CAST[1].name;
+    const v = pick([
+      [[b, `we need to talk about ${t}`], [a, 'I can explain'], [b, 'you have ten seconds'], [a, 'okay so it started as a joke'], [b, 'it is NOT a joke'], [a, 'it’s a LITTLE bit a joke', 'scratch'], [b, '…'], [b, 'it is a little bit a joke'], [a, 'see?'], [b, 'you’re still fired', 'boom'], [a, 'so… about ' + t]],
+      [[a, `I have a confession about ${t}`], [b, 'oh no'], [a, 'I’ve been training'], [b, 'for what'], [a, 'for THIS moment'], [b, 'that’s not a moment, that’s Tuesday', 'scratch'], [a, 'every day is a moment'], [b, 'please stop'], [a, 'no.', 'boom'], [a, `I have a confession about ${t}`]],
+    ]);
+    return { format, hook: `${a} and ${b} vs ${t}`, title: `${a} has a problem with ${t} #shorts`.slice(0, 60),
+      description: 'This is a safe space. It is not.', hashtags: ['#animation', '#skit', '#funny'], pinned: `Who's right here, ${a} or ${b}?`,
+      beats: v.map(([speaker, text, sfx]) => ({ speaker, text, sfx: sfx || null })) };
+  }
   if (format === 'chat') {
     const c = pick(['Unknown Number', 'Mom', 'Landlord', 'Roommate']);
     const v = pick([
@@ -818,6 +1151,11 @@ function offline(topic, format) {
 }
 function cleanAI(r, format) {
   if (!r || !Array.isArray(r.beats) || r.beats.length < 3) throw { code: 'shape' };
+  if (format === 'skit' && Array.isArray(r.cast) && r.cast.length && !CAST.some(c => c.img)) {
+    CAST = r.cast.slice(0, 3).map((c, i) => ({ name: String(c.name || `Character ${i + 1}`).slice(0, 24), desc: String(c.desc || '').slice(0, 200),
+      voice: ['mid', 'low', 'high'][i % 3], color: COLORS[i % COLORS.length], img: null }));
+    persistCast();
+  }
   return {
     format, hook: String(r.hook || '').slice(0, 80), title: String(r.title || '').slice(0, 100),
     description: String(r.description || ''), pinned: String(r.pinned || ''),
@@ -854,8 +1192,10 @@ Follow this viral comedy structure exactly:
 - "description": one funny sentence. "hashtags": 3 relevant hashtags. "pinned": a question for the pinned comment that makes viewers reply.
 - Original and clean: no real people, brands or celebrities, no slurs, don't punch down.
 
+${format === 'skit' ? (CAST.some(c => c.img) ? `Use exactly these characters, spelled exactly like this: ${CAST.map(c => `${c.name} (${c.desc || 'no description'})`).join('; ')}. Put them in "cast" too.` : 'Invent 2 characters. In "cast", give each a short name and a one-sentence visual description an image generator can draw.') : ''}
+
 Reply with JSON only, no prose:
-{"hook":"","title":"","description":"","hashtags":["#a","#b","#c"],"pinned":"","beats":[{"speaker":"","text":"","sfx":null${format === 'ranking' ? ',"score":7' : ''}}]}`;
+{"hook":"","title":"","description":"","hashtags":["#a","#b","#c"],"pinned":"",${format === 'skit' ? '"cast":[{"name":"","desc":""}],' : ''}"beats":[{"speaker":"","text":"","sfx":null${format === 'ranking' ? ',"score":7' : ''}}]}`;
   aiCtl = new AbortController();
   const btn = $('ai'); btn.textContent = 'Stop writing'; btn.classList.remove('primary');
   $('aiNote').textContent = 'Claude is writing your bit. It can take up to a minute.';
@@ -881,8 +1221,24 @@ try { saved = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
 if (saved && saved.S && Array.isArray(saved.S.beats) && saved.S.beats.length) {
   isSample = !!saved.isSample; if (saved.handle != null) $('handle').value = saved.handle;
   setScript(saved.S);
-} else setScript(clone(SAMPLES.chat));
+} else setScript(clone(SAMPLES.skit));
 
+$('addChar').onclick = () => {
+  const i = CAST.length;
+  CAST.push({ name: ['Toast', 'Toaster', 'Fork', 'Kettle', 'Mug'].find(n => !CAST.some(c => c.name === n)) || `Character ${i + 1}`, desc: '', voice: ['mid', 'low', 'high'][i % 3], color: COLORS[i % COLORS.length], img: null });
+  castChanged();
+};
+$('sceneDesc').onchange = () => { SCENE.desc = $('sceneDesc').value.trim(); persistCast(); };
+$('scenePrompt').onclick = e => giveCopy(scenePrompt(), e.target);
+$('sceneClear').onclick = () => { SCENE.img = null; castChanged(); };
+$('artStyle').onchange = persistCast;
+$('sceneFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  status('Processing background…');
+  try { SCENE.img = await readImage(f, true); castChanged(); status('Background set.'); }
+  catch (err) { status(err.message, true); }
+};
+$('voices').onchange = () => { if (player) { stop(true); play(); } };
 $('play').onclick = () => { if (player) { stop(true); status('Stopped.'); } else { status('Playing…'); play(); } };
 $('rec').onclick = record;
 $('save').onclick = saveVideo;
@@ -891,6 +1247,7 @@ $('ai').onclick = writeAI;
 $('remix').onclick = () => { isSample = false; setScript(offline($('topic').value, document.querySelector('#fmt input:checked').value)); $('aiNote').textContent = 'Remixed from a template. Tap again for a different version.'; };
 $('idea').onclick = () => { $('topic').value = IDEAS[Math.floor(Math.random() * IDEAS.length)]; };
 document.querySelectorAll('#fmt input').forEach(r => r.onchange = () => {
+  if (r.value === 'skit' && !CAST.length) { CAST = clone(DEFAULT_CAST); persistCast(); }
   if (isSample) setScript(clone(SAMPLES[r.value]));
   else { S.format = r.value; setScript(S); }
 });
